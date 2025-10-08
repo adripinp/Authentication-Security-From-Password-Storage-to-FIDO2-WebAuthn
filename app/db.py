@@ -2,10 +2,14 @@ import sqlite3
 
 DB_FILE = "users.db"
 
+def get_connection():
+    return sqlite3.connect(DB_FILE)
+
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     c = conn.cursor()
-    c.execute('''
+
+    c.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -17,8 +21,9 @@ def init_db():
             mfa_enabled INTEGER DEFAULT 0,
             mfa_meta_json TEXT
         )
-    ''')
-    c.execute('''
+    """)
+
+    c.execute("""
         CREATE TABLE IF NOT EXISTS mfa_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -26,6 +31,7 @@ def init_db():
             success INTEGER,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """)
+
     conn.commit()
     conn.close()
