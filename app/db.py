@@ -1,13 +1,15 @@
 import sqlite3
 
-DB_FILE = "users.db"
+#A constant with the filename (relative path) of the SQLite database. When you call sqlite3.connect(DB_FILE) it will create the file if it doesn’t exist.
+DB_FILE = "users.db"   
 
+#A small helper that returns a new sqlite3.Connection connected to users.db. Every call creates a new connection object.
 def get_connection():
     return sqlite3.connect(DB_FILE)
 
 def init_db():
-    conn = get_connection()
-    c = conn.cursor()
+    conn = get_connection()   #obtains a connection
+    c = conn.cursor()         #creates a cursor
 
     c.execute("""
         CREATE TABLE IF NOT EXISTS users (

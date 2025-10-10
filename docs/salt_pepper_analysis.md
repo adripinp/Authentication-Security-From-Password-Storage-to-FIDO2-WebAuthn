@@ -2,6 +2,14 @@
 
 This document compares the security implications of per-user salts versus a global system pepper.
 
+### Salt & Pepper Analysis
+
+Each user gets a unique 16-byte salt generated via os.urandom().  
+A global pepper is stored in `.env` (not in the database).  
+This means even if the database is leaked, attackers cannot easily recompute hashes without knowing the pepper.  
+Two users with the same password have different stored hashes because their salts differ.
+
+
 ## Overview
 
 | Feature | Salt | Pepper |

@@ -55,6 +55,3 @@ def test_register_and_login(client):
     assert resp.status_code == 401
     data = resp.get_json()
     assert "error" in data
-
-
-
