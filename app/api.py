@@ -1,14 +1,26 @@
 from dotenv import load_dotenv
 load_dotenv()                               # load .env in os.environ
 
-from flask import Flask, request, jsonify      #Imports Flask and helpers to receive JSON requests and send JSON responses.
+from flask import Flask, request, jsonify, render_template      #Imports Flask and helpers to receive JSON requests and send JSON responses.
 from app.db import init_db, get_connection
 from app.crypto_utils import hash_password, verify_password
 import sqlite3, json
+#The blueprints
+from .mfa import mfa_bp
+from .webauthn import webauthn_bp
+
 
 app = Flask(__name__)      #Creates the Flask app.
 init_db()                  #Creates the database/tables at app startup (runs on every process that imports this module).
 
+# Register blueprints
+app.register_blueprint(mfa_bp)
+app.register_blueprint(webauthn_bp)
+
+# Serve the WebAuthn demo page
+@app.get("/webauthn.html")
+def webauthn_page():
+    return render_template("webauthn.html")
 
 @app.route("/register", methods=["POST"])     #registration endpoint
 def register():                               #Extracts username, password, and algoritm
