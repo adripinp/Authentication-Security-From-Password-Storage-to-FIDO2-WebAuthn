@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()                               # load .env in os.environ
-
+import os
 from flask import Flask, request, jsonify, render_template      #Imports Flask and helpers to receive JSON requests and send JSON responses.
 from app.db import init_db, get_connection
 from app.crypto_utils import hash_password, verify_password
@@ -12,7 +12,7 @@ from .webauthn import webauthn_bp
 
 app = Flask(__name__)      #Creates the Flask app.
 init_db()                  #Creates the database/tables at app startup (runs on every process that imports this module).
-
+app.secret_key = os.urandom(32)
 # Register blueprints
 app.register_blueprint(mfa_bp)
 app.register_blueprint(webauthn_bp)

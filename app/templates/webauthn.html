@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WebAuthn Demo</title>
+    </head>
+  <body>
+    <h1>WebAuthn (Register/Login)</h1>
+
+
+    <!-- Simple form inputs to drive the demo -->
+    <label>Username: <input id="userName" value="alice" /></label>
+    <div>
+      <button onclick="register()">Register key</button>
+      <button onclick="login()">Login with key</button>
+    </div>
+
+
+    <!-- Load CBOR polyfill -->
+    <script src="/static/cbor.js"></script>
+
+    <!-- Main WebAuthn demo script (ES module) -->
+    <script type="module">
+      import { handleRegisterClick, handleLoginClick } from "/static/webauthn.js";
+
+
+      // Wrap module exports into global functions used by the demo buttons.
+      window.register = async function () {
+      const username = document.getElementById('userName').value.trim();   
+      try {
+        await handleRegisterClick({ username});
+        alert("Registered!");
+      } catch (e) {
+        console.error(e);
+        alert("Register failed: " + e.message);
+      }
+      };
+
+
+      window.login = async function () {
+      const username = document.getElementById('userName').value.trim();
+      try {
+        await handleLoginClick({ username });
+        alert("Authenticated!");
+      } catch (e) {
+        console.error(e);
+        alert("Auth failed: " + e.message);
+      }
+      };
+    </script>
+  </body>
+</html>
