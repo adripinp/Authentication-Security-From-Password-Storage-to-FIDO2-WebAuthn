@@ -65,7 +65,6 @@ _server = Fido2Server(PublicKeyCredentialRpEntity(id=RP_ID, name=RP_NAME), verif
 webauthn_bp = Blueprint("webauthn", __name__)
 
 
-
 def _exclude_list_for_user(user_id: int) -> List[PublicKeyCredentialDescriptor]:
     """Return a list of credential descriptors to exclude during registration.
 
@@ -147,13 +146,13 @@ def register_complete():
         return abort(400)
 
     credential_id = cred.credential_id                  # bytes
-    public_key_cose = cbor.encode(cred.public_key)      # bytes (COSE)
+    public_key_cose = cbor.encode(cred.public_key)    
     sign_count = getattr(reg, "sign_count", getattr(reg, "counter", 0)) or 0
     
     # Store credential; UNIQUE(user_id, credential_id) prevents dupes.
     DB.webauthn_save_credential(user_id, RP_ID, credential_id, public_key_cose, sign_count)
 
-    # Cache it in memory for this process lifetime (demo convenience).
+    # Cache it in memory for this process lifetime.
     _user_creds[user_id].append(cred)
 
     # clear state
@@ -177,8 +176,8 @@ def authenticate_begin():
 
     # check if in-memory
     user_creds = _user_creds.get(user_id, [])
+
     if not user_creds:
-        # should try to load from DB; not implemented
         return cbor.encode({"error": "no credentials registered for user"}), 400
 
     options, state = _server.authenticate_begin(user_creds)
@@ -214,18 +213,23 @@ def authenticate_complete():
 
     # python-fido2 will identify the matching stored credential by ID and
     # verify the signature over clientDataHash + authenticatorData.
-    _server.authenticate_complete(
-        state,
-        user_creds,          
-        credential_id,
-        client_data,
-        auth_data,
-        signature,
-    )
+    try:
+        _server.authenticate_complete(
+            state,
+            user_creds,          
+            credential_id,
+            client_data,
+            auth_data,
+            signature,
+        )
+    except ValueError as e:
+        print("authenticate_complete failed:", e)
+        return cbor.encode({"status": "error", "reason": str(e)}), 400
+
     # Read previous count from DB (if any)
     row = DB.webauthn_get_credential(user_id, credential_id)  # -> (public_key_bytes, prev_count) or None
     prev_count = row[1] if row else 0
-    
+
     # Get new count from authenticatorData
     new_count = getattr(auth_data, "sign_count", getattr(auth_data, "counter", 0)) or 0
 
@@ -236,7 +240,7 @@ def authenticate_complete():
         # Potentially cloned authenticator; choose policy. For dev, just log.
         DB.mfa_log(user_id, "webauthn", False, f"Non-incrementing counter: prev={prev_count}, new={new_count}")
     else:
-        # Monotonic increase → persist
+        # Monotonic increase -> persist
         DB.webauthn_update_sign_count(user_id, credential_id, new_count)
 
     # Clear state
